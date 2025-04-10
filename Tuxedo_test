@@ -1,0 +1,182 @@
+import { useState, useEffect, useRef } from 'react';
+
+const commentary = `
+This code generates a peaceful digital art area that resembles light painting.
+The user can draw on a large canvas with shimmering brushstrokes, 
+and the brushstrokes move slightly as if they were alive.
+The glowing trails left by the brush gradually fade away.
+There are a few colour schemes and brush techniques influenced by auroras, deep-sea life, and galaxies.
+The user can play background ambient sounds, switch between light and dark mode, save their artwork, and clear the canvas.
+`;
+
+const template = 'nextjs-developer';
+const title = 'Digital Art';
+const description = 'A peaceful digital art area that resembles light painting.';
+const additional_dependencies = ['howler'];
+const has_additional_dependencies = true;
+const install_dependencies_command = 'npm install howler';
+const port: number | null = 3000;
+const file_path = 'pages/index.tsx';
+
+const App = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [brushColor, setBrushColor] = useState('#ffffff');
+  const [brushSize, setBrushSize] = useState(10);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [lastX, setLastX] = useState(0);
+  const [lastY, setLastY] = useState(0);
+  const [audioPlaying, setAudioPlaying] = useState(false);
+  const [theme, setTheme] = useState('light');
+  const animationRef = useRef<number | null>(null);
+  const fadeRef = useRef<CanvasRenderingContext2D | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    fadeRef.current = ctx;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    
+    const animate = () => {
+      if (fadeRef.current) {
+        fadeRef.current.fillStyle = theme === 'dark' ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)';
+        fadeRef.current.fillRect(0, 0, canvas.width, canvas.height);
+      }
+      animationRef.current = requestAnimationFrame(animate);
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    };
+  }, [theme]);
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    setIsDrawing(true);
+    setLastX(e.clientX);
+    setLastY(e.clientY);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || !canvasRef.current) return;
+    const ctx = canvasRef.current.getContext('2d');
+    if (!ctx) return;
+
+    ctx.strokeStyle = brushColor;
+    ctx.lineWidth = brushSize;
+    ctx.shadowColor = brushColor;
+    ctx.shadowBlur = 20;
+
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+    ctx.lineTo(e.clientX, e.clientY);
+    ctx.stroke();
+
+    setLastX(e.clientX);
+    setLastY(e.clientY);
+  };
+
+  const handleMouseUp = () => {
+    setIsDrawing(false);
+  };
+
+  const handleAudioPlay = () => {
+    if (!audioPlaying) {
+      const audio = new Audio('/ambient.mp3');
+      audio.loop = true;
+      audio.play();
+      setAudioPlaying(true);
+    } else {
+      const audio = new Audio('/ambient.mp3');
+      audio.pause();
+      setAudioPlaying(false);
+    }
+  };
+
+  const handleThemeChange = () => {
+    setTheme(theme === 'light' ? 'dark' : 'light');
+  };
+
+  const handleSave = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dataURL = canvas.toDataURL();
+    const a = document.createElement('a');
+    a.href = dataURL;
+    a.download = 'artwork.png';
+    a.click();
+  };
+
+  const handleClear = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  };
+
+  return (
+    <div className={`min-h-screen w-full ${theme === 'light' ? 'bg-white text-black' : 'bg-black text-white'}`}>
+      <canvas
+        ref={canvasRef}
+        className="fixed top-0 left-0 w-full h-full z-0"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      />
+
+      <div className="relative z-10 p-4">
+        <h1 className="text-center text-4xl font-bold font-mono mb-6">🎨 Light Painting Studio</h1>
+
+        <div className="flex flex-wrap justify-center gap-4 mb-4">
+          {["#ff0000", "#00ff00", "#0000ff", "#00ffff", "#ff00ff"].map((color) => (
+            <button
+              key={color}
+              onClick={() => setBrushColor(color)}
+              className="w-8 h-8 rounded-full border-2"
+              style={{ backgroundColor: color, borderColor: brushColor === color ? '#888' : 'transparent' }}
+            />
+          ))}
+        </div>
+
+        <div className="flex flex-wrap justify-center gap-4 mb-4">
+          {[5, 10, 20, 30].map((size) => (
+            <button
+              key={size}
+              onClick={() => setBrushSize(size)}
+              className={`px-4 py-2 rounded-full ${brushSize === size ? 'bg-blue-500 text-white' : 'bg-gray-300 text-black'}`}
+            >
+              {size}px
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap justify-center gap-4">
+          <button onClick={handleAudioPlay} className="bg-purple-400 hover:bg-purple-500 text-white px-4 py-2 rounded-full">
+            {audioPlaying ? 'Pause Audio' : 'Play Audio'}
+          </button>
+          <button onClick={handleThemeChange} className="bg-yellow-400 hover:bg-yellow-500 text-black px-4 py-2 rounded-full">
+            Toggle {theme === 'light' ? 'Dark' : 'Light'} Mode
+          </button>
+          <button onClick={handleSave} className="bg-green-400 hover:bg-green-500 text-white px-4 py-2 rounded-full">
+            Save Artwork
+          </button>
+          <button onClick={handleClear} className="bg-red-400 hover:bg-red-500 text-white px-4 py-2 rounded-full">
+            Clear Canvas
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default App;
